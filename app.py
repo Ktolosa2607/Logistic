@@ -126,13 +126,37 @@ def conectar_tidb():
         st.error(f"⚠️ Error de enlace con TiDB Cloud: {e}")
         return None
 
+# UTILIDADES DE PARSEO INTEGRAL (Misma lógica exacta de tu JS original)
+def parseMonto(texto):
+    if texto is None:
+        return 0.0
+    texto_clean = str(texto).replace(',', '').strip()
+    if not texto_clean or texto_clean.lower() == 'none':
+        return 0.0
+    try:
+        return float(texto_clean)
+    except ValueError:
+        return 0.0
+
+def ejecutar_selector_hijo(elemento, selector_css):
+    """Simula el comportamiento de querySelector cuando tiene espacios jerárquicos"""
+    if " " in selector_css:
+        partes = selector_css.split(" ")
+        nodo_actual = elemento
+        for parte in partes:
+            nodo_actual = nodo_actual.find(f".//{parte}")
+            if nodo_actual is None:
+                return None
+        return nodo_actual.text
+    else:
+        nodo = elemento.find(f".//{selector_css}")
+        return nodo.text if nodo is not None else None
+
 # =========================================================================
-# 3. CONTROL DE PERSISTENCIA DE PASOS (Stepper)
+# 3. CONTROL DE PERSISTENCIA DE PASOS
 # =========================================================================
 if "step" not in st.session_state:
     st.session_state.step = 1
-if "raw_folder_data" not in st.session_state:
-    st.session_state.raw_folder_data = []
 if "master_sessions" not in st.session_state:
     st.session_state.master_sessions = {}
 if "macro_zip_data" not in st.session_state:
@@ -142,7 +166,6 @@ def ir_a_paso(paso):
     st.session_state.step = paso
     st.rerun()
 
-# Dibujar cabeceras estéticas de la App original
 s1, s2, s3, s4 = "completed" if st.session_state.step > 1 else ("active" if st.session_state.step == 1 else ""), "completed" if st.session_state.step > 2 else ("active" if st.session_state.step == 2 else ""), "completed" if st.session_state.step > 3 else ("active" if st.session_state.step == 3 else ""), "active" if st.session_state.step == 4 else ""
 l1, l2, l3 = "completed" if st.session_state.step > 1 else "", "completed" if st.session_state.step > 2 else "", "completed" if st.session_state.step > 3 else ""
 
@@ -167,7 +190,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # =========================================================================
-# PASO 1: LECTURA COINCIDENTE CON LA ESTRUCTURA ORIGINAL DE CARPETAS
+# PASO 1: LECTURA DE CARPETA RAÍZ (VÍA ZIP) Y COMPORTAMIENTO ORIGINAL
 # =========================================================================
 if st.session_state.step == 1:
     st.markdown("<div class='premium-card'>", unsafe_allow_html=True)
@@ -175,29 +198,28 @@ if st.session_state.step == 1:
     
     col1, col2 = st.columns(2)
     with col1:
-        # Recomendación técnica para mantener webkitdirectory mediante ZIP en servidores remotos
         master_zip = st.file_uploader(
-            "Arrastra aquí el archivo .ZIP de la Carpeta de tus Másters (Mantiene la estructura de subcarpetas)", 
+            "Arrastra aquí la carpeta raíz comprimida en .ZIP (Conserva todas tus subcarpetas Máster)", 
             type=["zip"], key="master_zip"
         )
     with col2:
         starship_excels = st.file_uploader(
-            "Arrastra los archivos Excel (StarShip) aquí", 
+            "Arrastra los Excel (StarShip) aquí", 
             accept_multiple_files=True, type=["xlsx", "xls"], key="starship_excels"
         )
 
     if master_zip and starship_excels:
         if st.button("Siguiente: Auditar Datos ➡️", type="primary"):
-            with st.spinner("Ejecutando parseo recursivo y discriminación de carpetas..."):
+            with st.spinner("Ejecutando parseo recursivo y discriminación de carpetas de origen..."):
                 
-                # --- PARSEO DE EXCEL (STARSHIP LOGIC) ---
-                db_starship = []
+                # --- PARSEO DE EXCEL (STARSHIP) ---
+                dbStarship = []  # Corregido nombre de variable global para evitar NameError
                 for f in starship_excels:
                     try:
                         df_sheet = pd.read_excel(f, skiprows=2, header=None)
                         for _, row in df_sheet.iterrows():
                             if len(row) >= 27 and pd.notna(row[26]):
-                                db_starship.append({
+                                dbStarship.append({
                                     "awb": str(row[1]).strip() if pd.notna(row[1]) else "",
                                     "tracking": str(row[2]).strip() if pd.notna(row[2]) else "",
                                     "pkgZ": str(row[26]).strip(),
@@ -206,8 +228,8 @@ if st.session_state.step == 1:
                     except Exception as e:
                         st.error(f"Error procesando Excel {f.name}: {e}")
 
-                # --- LÓGICA DE EXTRACCIÓN RECURSIVA COINCIDENTE CON EL COGNITIVO DEL JS ---
-                folder_groups = {}  # Map() simulado en Python
+                # --- LÓGICA RECURSIVA COINCIDENTE CON WEBKITRELATIVEPATH ---
+                folder_groups = {}
                 
                 with zipfile.ZipFile(master_zip, "r") as z:
                     for file_info in z.infolist():
@@ -215,25 +237,24 @@ if st.session_state.step == 1:
                             continue
                         
                         filename = file_info.filename
-                        # Limpieza y separación exacta por niveles (webkitRelativePath split)
                         parts = [p for p in filename.split('/') if p]
                         folder_name = "Carpeta_Independiente"
                         
+                        # Mapeo idéntico al comportamiento por índices de tu JS original
                         if len(parts) >= 3:
-                            folder_name = parts[1]  # Mismo mapeo indexado de tu JS
+                            folder_name = parts[1]  
                         elif len(parts) == 2:
                             folder_name = parts[0]
                             
                         if folder_name not in folder_groups:
                             folder_groups[folder_name] = {"xmls": [], "pdfs": []}
                             
-                        # Clasificación por extensiones
                         if filename.lower().endswith('.xml'):
                             folder_groups[folder_name]["xmls"].append((filename, z.read(filename)))
                         elif filename.lower().endswith('.pdf'):
                             folder_groups[folder_name]["pdfs"].append((filename, z.read(filename)))
 
-                # --- REPLICACIÓN DEL PROCESAMIENTO PARSE-XML-PROMISIFIED ---
+                # --- REPLICACIÓN EXTRACTORA XML (SAFE PARSE MONTO) ---
                 raw_folder_data = []
                 for f_name, group in folder_groups.items():
                     guias_acumuladas = []
@@ -242,21 +263,14 @@ if st.session_state.step == 1:
                         try:
                             root = ET.fromstring(xml_bytes)
                             for item in root.findall('.//Item'):
-                                summary_node = item.find('.//Summary_declaration')
-                                summary = summary_node.text if summary_node is not None else "N/A"
+                                summary_txt = ejecutar_selector_hijo(item, "Summary_declaration")
+                                summary = summary_txt.strip() if summary_txt else "N/A"
                                 
-                                # Extraer montos aduaneros exactos aplicando reemplazo de comas
-                                def clean_monto(node_name):
-                                    node = item.find(f'.//{node_name}')
-                                    if node is not None and node.text:
-                                        num = float(str(node.text).replace(',', '').strip())
-                                        return num
-                                    return 0.0
-
-                                fob = clean_monto("Item_Invoice_Amount_national_currency")
-                                freight = clean_monto("item_external_freight_Amount_national_currency")
-                                insurance = clean_monto("item_insurance_Amount_national_currency")
-                                cif = clean_monto("Total_CIF_itm")
+                                # Ejecución limpia de selectores con espacios hijos de tu JS
+                                fob = parseMonto(ejecutar_selector_hijo(item, "Item_Invoice Amount_national_currency"))
+                                freight = parseMonto(ejecutar_selector_hijo(item, "item_external_freight Amount_national_currency"))
+                                insurance = parseMonto(ejecutar_selector_hijo(item, "item_insurance Amount_national_currency"))
+                                cif = parseMonto(ejecutar_selector_hijo(item, "Total_CIF_itm"))
                                 
                                 dai, iva = 0.0, 0.0
                                 for line in item.findall('.//Taxation_line'):
@@ -264,12 +278,12 @@ if st.session_state.step == 1:
                                     amount_node = line.find('.//Duty_tax_amount')
                                     if code_node is not None and amount_node is not None:
                                         code = code_node.text
-                                        amount = float(str(amount_node.text).replace(',', '').strip() or 0)
+                                        amount = parseMonto(amount_node.text)
                                         if code == "DAI": dai = amount
                                         elif code == "IVA": iva = amount
                                         
                                 guias_acumuladas.append({
-                                    "guia": summary.strip(), "fob": fob, "freight": freight, 
+                                    "guia": summary, "fob": fob, "freight": freight, 
                                     "insurance": insurance, "cif": cif, "dai": dai, "iva": iva
                                 })
                         except Exception as e:
@@ -281,7 +295,7 @@ if st.session_state.step == 1:
                         "pdfFiles": group["pdfs"]
                     })
 
-                # --- DISCRIMINACIÓN Y CONSOLIDACIÓN MULTI-MÁSTER (PASO 2 ORIGINAL) ---
+                # --- CONSOLIDACIÓN MULTI-MÁSTER (DISCRIMINACIÓN PASO 2) ---
                 master_sessions = {}
                 starship_map = {reg["pkgZ"]: reg for reg in dbStarship}
                 
@@ -308,7 +322,6 @@ if st.session_state.step == 1:
                             "tracking": match["tracking"] if match else "N/A"
                         })
                         
-                    # Agrupar PDFs correspondientes a esta subcarpeta de origen exacta
                     for pdf_path, pdf_bytes in folder["pdfFiles"]:
                         pdf_name_only = pdf_path.split('/')[-1]
                         match_num = re.match(r'^\d+', pdf_name_only) or re.search(r'\d+', pdf_name_only)
@@ -330,11 +343,11 @@ if st.session_state.step == 1:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
-# PASO 2: RENDIMIENTO E INTERFAZ GRÁFICA DE AUDITORÍA
+# PASO 2: TABLA DE AUDITORÍA Y COMPORTAMIENTO DE FILTROS (.row-error)
 # =========================================================================
 elif st.session_state.step == 2:
     st.markdown("<div class='premium-card'>", unsafe_allow_html=True)
-    st.write("### 📊 Cuadre y Discriminación de Declaraciones")
+    st.write("### 📊 Tablero de Auditoría y Control de Desajustes")
     
     if "mostrando_solo_errores" not in st.session_state:
         st.session_state.mostrando_solo_errores = False
@@ -371,10 +384,9 @@ elif st.session_state.step == 2:
                 for row in session["finalData"]:
                     if round(row["fob"] + row["freight"] + row["insurance"], 2) != round(row["cif"], 2):
                         row["freight"] = round(row["cif"] - row["fob"] - row["insurance"], 2)
-            st.success("¡Cuadre matemático forzado exitosamente contra el Value For Duty!")
+            st.success("¡Fletes desalineados recalculados exitosamente contra el Value For Duty!")
             st.rerun()
 
-    # Estilización condicional de la grilla tipo CSS original (.row-error)
     if not df_audit.empty:
         def style_rows(data):
             return ['background-color: #fff1f2; color: #991b1b;' if data["is_error"] else '' for _ in data]
@@ -382,7 +394,7 @@ elif st.session_state.step == 2:
         df_display = df_audit.drop(columns=["is_error"])
         st.dataframe(df_display.style.apply(style_rows, axis=1).format(precision=2), use_container_width=True, height=380)
     else:
-        st.info("No se encontraron registros bajo el criterio seleccionado.")
+        st.info("No se encontraron declaraciones con descuadres.")
 
     st.write("")
     if st.button("📥 Validar y Procesar PDFs ➡️", type="primary"):
@@ -390,7 +402,7 @@ elif st.session_state.step == 2:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
-# PASO 3: CONTROL VISUAL DE PDFs RENOMBRADOS EN PARALELO
+# PASO 3: RESUMEN DE PDFs EN PARALELO Y EMPAQUETADO ZIP
 # =========================================================================
 elif st.session_state.step == 3:
     st.markdown("<div class='premium-card'>", unsafe_allow_html=True)
@@ -423,18 +435,17 @@ elif st.session_state.step == 3:
     st.write(f"**{total_validos} de {total_pdfs} PDFs mapeados correctamente.**")
 
     if st.button("📦 Generar MACRO-ZIP Consolidado ✓", type="primary", disabled=(total_validos == 0)):
-        with st.spinner("Compilando empaquetado estructural final bilingüe..."):
+        with st.spinner("Compilando plantillas TEMU bilingües y subiendo registro a TiDB Cloud..."):
             macro_buffer = io.BytesIO()
             busqueda_historica = []
             
             with zipfile.ZipFile(macro_buffer, "w", zipfile.ZIP_DEFLATED) as macro_zip:
                 for master_name, session in st.session_state.master_sessions.items():
                     
-                    # Estructura estricta de las 19 Columnas bilingües exigidas por TEMU
                     headers = [
                         "Platform包裹号（必填）|Platform Package Number (required)", "包裹清关所属国家（必填）|Country (required)",
                         "包裹清关所在省（非必填）|Province of customs clearance (optional)", "包裹收货所在省（非必填）|Province of receipt (optional)",
-                        "币种（申报金额与税费）（必填）|Currency (required)", "包裹的申报价值金额（必填）|Value For Duty (required)",
+                        "币种（申报金额与税费）（必填）|Currency (required)", "包裹 de 申报价值金额（必填）|Value For Duty (required)",
                         "服务商申报包裹代缴税费总金额（必填）|Total payable amount (required)", "服务商申报包裹代缴关税总金额（必填）|Total Duty (required)",
                         "服务商申报包裹代缴消费税金额（必填）|Total Excise Tax (required)", "服务商申报包裹代缴增值税金额（必填）|Total GST (required)",
                         "服务商申报包裹代缴反倾销税金额（必填）|Total SIMA (required)", "服务商申报包裹代缴其他税金额（必填）|Total Other Tax (required)",
@@ -460,10 +471,8 @@ elif st.session_state.step == 3:
                     with pd.ExcelWriter(excel_buf, engine="openpyxl") as w:
                         df_out.to_excel(w, sheet_name="Template", index=False)
                         
-                    # Guardar XLSX en la raíz del empaquetado
                     macro_zip.writestr(f"{master_name}.xlsx", excel_buf.getvalue())
                     
-                    # Generar sub-ZIP individual interno de DUCAs
                     valid_pdfs = [p for p in session["processedPdfs"] if p["status"] == "success"]
                     if valid_pdfs:
                         sub_zip_buf = io.BytesIO()
@@ -474,14 +483,13 @@ elif st.session_state.step == 3:
 
             st.session_state.macro_zip_data = macro_buffer.getvalue()
             
-            # --- PERSISTENCIA CENTRALIZADA CLOUD (REEMPLAZO DE INDEXED DB) ---
+            # --- INCORPORACIÓN DEL BACKEND EN LA NUBE (TiDB CLOUD) ---
             conn = conectar_tidb()
             if conn:
                 cursor = conn.cursor()
                 m_label = list(st.session_state.master_sessions.keys())[0] if st.session_state.master_sessions else "Lote"
                 indice_texto = " ".join(busqueda_historica)
                 
-                # Inyección SQL directa a la tabla control_ducas de tu base test
                 query = "INSERT INTO control_ducas (master_name, search_data) VALUES (%s, %s)"
                 cursor.execute(query, (f"Lote_{m_label}", indice_texto))
                 conn.commit()
@@ -492,13 +500,13 @@ elif st.session_state.step == 3:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
-# PASO 4: ENTREGA DE ARCHIVOS Y REINICIO
+# PASO 4: DESCARGA DIRECTA DEL PAQUETE
 # =========================================================================
 elif st.session_state.step == 4:
     st.markdown("<div class='finish-card'>", unsafe_allow_html=True)
     st.write("<div style='font-size: 5em; margin-bottom: 15px;'>🎉</div>", unsafe_allow_html=True)
     st.write("<h2 style='color: #047857; margin-bottom: 10px;'>¡Proceso por Lotes Completado!</h2>", unsafe_allow_html=True)
-    st.write("<p style='color: #065f46; font-size: 1.2em; margin-bottom: 40px;'>Los archivos Excel y los ZIPs individuales de las DUCAs han sido estructurados de forma segura dentro del paquete final.</p>", unsafe_allow_html=True)
+    st.write("<p style='color: #065f46; font-size: 1.2em; margin-bottom: 40px;'>Los libros de control Excel y los ZIPs individuales de las DUCAs han sido estructurados de forma segura dentro del paquete final.</p>", unsafe_allow_html=True)
     
     if st.session_state.macro_zip_data:
         st.download_button(
@@ -516,7 +524,7 @@ elif st.session_state.step == 4:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
-# GESTOR DE HISTORIAL INTEGRADO EN LA NUBE (TiDB CLOUD)
+# GESTOR DE HISTORIAL EN LA NUBE (TiDB CLOUD)
 # =========================================================================
 st.markdown("<div class='premium-card'>", unsafe_allow_html=True)
 st.write("### 🗄️ Gestor de Archivos Locales en la Nube")
