@@ -341,7 +341,7 @@ if st.session_state.step == 1:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
-# PASO 2: TABLA DE AUDITORÍA (FIXED KEYERROR MEDIANTE .HIDE)
+# PASO 2: TABLA DE AUDITORÍA (CORREGIDO ERROR DE KEYERROR / TYPEERROR)
 # =========================================================================
 elif st.session_state.step == 2:
     st.markdown("<div class='premium-card'>", unsafe_allow_html=True)
@@ -386,14 +386,13 @@ elif st.session_state.step == 2:
             st.rerun()
 
     if not df_audit.empty:
-        # La función style_rows ahora puede leer de forma segura "is_error" porque no se ha eliminado del DF
         def style_rows(data):
             return ['background-color: #fff1f2; color: #991b1b;' if data["is_error"] else '' for _ in data]
         
-        # Aplicamos estilos manteniendo la columna viva, y la ocultamos de la UI usando .hide() de Pandas
+        # Ocultación de la columna con la sintaxis reglamentaria de la API de Pandas Styler
         st.dataframe(
             df_audit.style.apply(style_rows, axis=1)
-            .hide(columns=["is_error"])
+            .hide(subset=["is_error"], axis=1)
             .format(precision=2), 
             use_container_width=True, 
             height=380
