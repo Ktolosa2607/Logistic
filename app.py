@@ -161,6 +161,8 @@ if "master_sessions" not in st.session_state:
     st.session_state.master_sessions = {}
 if "macro_zip_data" not in st.session_state:
     st.session_state.macro_zip_data = None
+if "zip_filename" not in st.session_state:
+    st.session_state.zip_filename = None
 
 def ir_a_paso(paso):
     st.session_state.step = paso
@@ -341,7 +343,7 @@ if st.session_state.step == 1:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
-# PASO 2: TABLA DE AUDITORÍA (CORREGIDO ERROR DE KEYERROR / TYPEERROR)
+# PASO 2: TABLA DE AUDITORÍA (SINTAXIS BLINDADA DE PANDAS STYLER)
 # =========================================================================
 elif st.session_state.step == 2:
     st.markdown("<div class='premium-card'>", unsafe_allow_html=True)
@@ -389,7 +391,7 @@ elif st.session_state.step == 2:
         def style_rows(data):
             return ['background-color: #fff1f2; color: #991b1b;' if data["is_error"] else '' for _ in data]
         
-        # Ocultación de la columna con la sintaxis reglamentaria de la API de Pandas Styler
+        # Ocultación reglamentaria usando la propiedad subset y definiendo el eje horizontal
         st.dataframe(
             df_audit.style.apply(style_rows, axis=1)
             .hide(subset=["is_error"], axis=1)
@@ -406,7 +408,7 @@ elif st.session_state.step == 2:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
-# PASO 3: RESUMEN DE PDFs EN PARALELO Y EMPAQUETADO ZIP
+# PASO 3: RESUMEN DE PDFs EN PARALELO Y EMPAQUETADO ZIP (CONGELAR METADATOS)
 # =========================================================================
 elif st.session_state.step == 3:
     st.markdown("<div class='premium-card'>", unsafe_allow_html=True)
@@ -485,7 +487,9 @@ elif st.session_state.step == 3:
                                 sub_zip.writestr(p["newName"], p["file_bytes"])
                         macro_zip.writestr(f"{master_name}_Ducas.zip", sub_zip_buf.getvalue())
 
+            # Guardamos tanto los bytes del archivo como el nombre fijo para evitar interrupciones de ciclo
             st.session_state.macro_zip_data = macro_buffer.getvalue()
+            st.session_state.zip_filename = f"Lote_Consolidado_Aduana_{int(datetime.now().timestamp())}.zip"
             
             # --- INCORPORACIÓN DEL BACKEND EN LA NUBE (TiDB CLOUD) ---
             conn = conectar_tidb()
@@ -504,19 +508,26 @@ elif st.session_state.step == 3:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
-# PASO 4: DESCARGA DIRECTA DEL PAQUETE
+# PASO 4: DESCARGA DIRECTA PAQUETE ESTÁTICO (FIXED RELOAD GLITCH)
 # =========================================================================
 elif st.session_state.step == 4:
-    st.markdown("<div class='finish-card'>", unsafe_allow_html=True)
-    st.write("<div style='font-size: 5em; margin-bottom: 15px;'>🎉</div>", unsafe_allow_html=True)
-    st.write("<h2 style='color: #047857; margin-bottom: 10px;'>¡Proceso por Lotes Completado!</h2>", unsafe_allow_html=True)
-    st.write("<p style='color: #065f46; font-size: 1.2em; margin-bottom: 40px;'>Los libros de control Excel y los ZIPs individuales de las DUCAs han sido estructurados de forma segura dentro del paquete final.</p>", unsafe_allow_html=True)
+    st.markdown(f"""
+        <div class='finish-card'>
+            <div style='font-size: 5em; margin-bottom: 15px;'>🎉</div>
+            <h2 style='color: #047857; margin-bottom: 10px;'>¡Proceso por Lotes Completado!</h2>
+            <p style='color: #065f46; font-size: 1.2em; margin-bottom: 40px;'>
+                Los libros de control Excel y los ZIPs individuales de las DUCAs han sido estructurados de forma segura dentro del paquete final.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    if st.session_state.macro_zip_data:
+    st.write("")
+    if st.session_state.get("macro_zip_data"):
+        # Descarga libre de reinicios accidentales al usar datos consolidados
         st.download_button(
             label="📥 Descargar MACRO-ZIP Consolidado",
             data=st.session_state.macro_zip_data,
-            file_name=f"Lote_Consolidado_Aduana_{int(datetime.now().timestamp())}.zip",
+            file_name=st.session_state.get("zip_filename", "Lote_Consolidado_Aduana.zip"),
             mime="application/zip",
             type="primary"
         )
@@ -524,8 +535,9 @@ elif st.session_state.step == 4:
     if st.button("+ Iniciar Nuevo Proceso", type="secondary"):
         st.session_state.master_sessions = {}
         st.session_state.macro_zip_data = None
+        if "zip_filename" in st.session_state:
+            del st.session_state.zip_filename
         ir_a_paso(1)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
 # GESTOR DE HISTORIAL EN LA NUBE (TiDB CLOUD)
