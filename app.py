@@ -309,7 +309,7 @@ elif st.session_state.step == 2:
         for item in sesion["final_data"]:
             suma_calc = round(item["fob"] + item["freight"] + item["insurance"], 2)
             cif_val = round(item["cif"], 2)
-            dif = round(cif_val - Glen := suma_calc, 2)
+            dif = round(cif_val - suma_calc, 2)
             
             rows.append({
                 "Máster Asignado": item["master"], "Guía": item["guia"], "AWB": item["awb"], "Tracking": item["tracking"],
