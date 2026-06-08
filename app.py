@@ -213,7 +213,7 @@ if st.session_state.step == 1:
             with st.spinner("Ejecutando parseo recursivo y discriminación de carpetas de origen..."):
                 
                 # --- PARSEO DE EXCEL (STARSHIP) ---
-                dbStarship = []  # Corregido nombre de variable global para evitar NameError
+                dbStarship = []
                 for f in starship_excels:
                     try:
                         df_sheet = pd.read_excel(f, skiprows=2, header=None)
@@ -240,7 +240,6 @@ if st.session_state.step == 1:
                         parts = [p for p in filename.split('/') if p]
                         folder_name = "Carpeta_Independiente"
                         
-                        # Mapeo idéntico al comportamiento por índices de tu JS original
                         if len(parts) >= 3:
                             folder_name = parts[1]  
                         elif len(parts) == 2:
@@ -266,7 +265,6 @@ if st.session_state.step == 1:
                                 summary_txt = ejecutar_selector_hijo(item, "Summary_declaration")
                                 summary = summary_txt.strip() if summary_txt else "N/A"
                                 
-                                # Ejecución limpia de selectores con espacios hijos de tu JS
                                 fob = parseMonto(ejecutar_selector_hijo(item, "Item_Invoice Amount_national_currency"))
                                 freight = parseMonto(ejecutar_selector_hijo(item, "item_external_freight Amount_national_currency"))
                                 insurance = parseMonto(ejecutar_selector_hijo(item, "item_insurance Amount_national_currency"))
@@ -343,7 +341,7 @@ if st.session_state.step == 1:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # =========================================================================
-# PASO 2: TABLA DE AUDITORÍA Y COMPORTAMIENTO DE FILTROS (.row-error)
+# PASO 2: TABLA DE AUDITORÍA (FIXED KEYERROR MEDIANTE .HIDE)
 # =========================================================================
 elif st.session_state.step == 2:
     st.markdown("<div class='premium-card'>", unsafe_allow_html=True)
@@ -388,11 +386,18 @@ elif st.session_state.step == 2:
             st.rerun()
 
     if not df_audit.empty:
+        # La función style_rows ahora puede leer de forma segura "is_error" porque no se ha eliminado del DF
         def style_rows(data):
             return ['background-color: #fff1f2; color: #991b1b;' if data["is_error"] else '' for _ in data]
         
-        df_display = df_audit.drop(columns=["is_error"])
-        st.dataframe(df_display.style.apply(style_rows, axis=1).format(precision=2), use_container_width=True, height=380)
+        # Aplicamos estilos manteniendo la columna viva, y la ocultamos de la UI usando .hide() de Pandas
+        st.dataframe(
+            df_audit.style.apply(style_rows, axis=1)
+            .hide(columns=["is_error"])
+            .format(precision=2), 
+            use_container_width=True, 
+            height=380
+        )
     else:
         st.info("No se encontraron declaraciones con descuadres.")
 
@@ -445,7 +450,7 @@ elif st.session_state.step == 3:
                     headers = [
                         "Platform包裹号（必填）|Platform Package Number (required)", "包裹清关所属国家（必填）|Country (required)",
                         "包裹清关所在省（非必填）|Province of customs clearance (optional)", "包裹收货所在省（非必填）|Province of receipt (optional)",
-                        "币种（申报金额与税费）（必填）|Currency (required)", "包裹 de 申报价值金额（必填）|Value For Duty (required)",
+                        "币种（申报金额与税费）（必填）|Currency (required)", "包裹的申报价值金额（必填）|Value For Duty (required)",
                         "服务商申报包裹代缴税费总金额（必填）|Total payable amount (required)", "服务商申报包裹代缴关税总金额（必填）|Total Duty (required)",
                         "服务商申报包裹代缴消费税金额（必填）|Total Excise Tax (required)", "服务商申报包裹代缴增值税金额（必填）|Total GST (required)",
                         "服务商申报包裹代缴反倾销税金额（必填）|Total SIMA (required)", "服务商申报包裹代缴其他税金额（必填）|Total Other Tax (required)",
